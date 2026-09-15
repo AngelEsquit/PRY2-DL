@@ -18,6 +18,7 @@ dqn/
   agent.py              # DQNAgent: epsilon-greedy, target network, DQN/Double DQN, save/load
   train.py              # Script de entrenamiento (CLI)
 evaluate.py              # Evaluación greedy (5 episodios) + generación de video
+evaluate_baselines.py     # Baselines de referencia (agente aleatorio y de regla simple del Lab 5)
 notebooks/
   Proyecto2_SpaceInvaders_DQN.ipynb   # Análisis del entorno, metodología, resultados
 checkpoints/             # Pesos guardados por iteración (*.pt, ignorados por git salvo README)
@@ -70,6 +71,24 @@ Esto:
 3. Imprime la recompensa de cada episodio, el promedio y el máximo (criterio de ranking de la competencia).
 4. Graba un video `.mp4` por episodio en `videos/`, con la misma configuración de preprocesamiento
    (frame-skip, resize, frame-stack) usada en el entrenamiento.
+
+## Baselines de referencia
+
+El profesor pidió comparar contra un baseline (análogo a una regresión lineal en un problema supervisado:
+no busca ser competitivo, solo dar un punto de referencia). Se usan los dos agentes sin aprendizaje ya
+implementados en el Laboratorio #5:
+
+```bash
+python evaluate_baselines.py --episodes 5 --video-folder videos
+```
+
+- **`agente_aleatorio`**: acción aleatoria en cada paso (baseline estándar en RL, equivalente a "predecir la
+  media" en regresión).
+- **`agente_regla_simple`**: política fija (dispara siempre que puede) sin ningún tipo de aprendizaje.
+
+Reporta promedio y máximo de 5 episodios con el mismo protocolo que `evaluate.py` (recompensa real, sin
+recortar, episodio = partida completa), para poder compararlos directamente en la tabla de resultados del
+trabajo escrito junto a las iteraciones del agente DQN.
 
 ## Notas de diseño relevantes para el trabajo escrito
 
