@@ -90,6 +90,21 @@ Reporta promedio y máximo de 5 episodios con el mismo protocolo que `evaluate.p
 recortar, episodio = partida completa), para poder compararlos directamente en la tabla de resultados del
 trabajo escrito junto a las iteraciones del agente DQN.
 
+## Resultados actuales
+
+| Agente | Reward promedio (5 ep.) | Reward máximo |
+|---|---|---|
+| Baseline aleatorio | 185.0 | 260.0 |
+| Baseline regla simple | 270.0 | 270.0 |
+| **DQN (`best_run`: Dueling + Double DQN, 3M pasos)** | **710.0** | **800.0** |
+
+`best_run`: arquitectura Dueling DQN, Double DQN activado, γ=0.99, lr=2.5e-4, replay buffer de 150k,
+ε decae de 1.0 a 0.02 en el primer millón de pasos, 3,000,000 pasos de entorno totales
+(~153 min en una GTX 1660 Super). Episodios de evaluación: `[605, 715, 800, 715, 715]`. La pérdida se
+mantuvo estable y baja (~0.01-0.02) durante todo el entrenamiento, sin señales de divergencia; no hay
+evidencia de que la curva haya convergido del todo, por lo que una iteración con más pasos de
+entrenamiento es la mejora más directa a probar a continuación.
+
 ## Notas de diseño relevantes para el trabajo escrito
 
 - **Preprocesamiento** (`dqn/wrappers.py`): escala de grises + resize a 84×84, `frame_skip=4` con
