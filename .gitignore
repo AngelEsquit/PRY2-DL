@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# Checkpoints y videos generados durante entrenamiento/evaluación (pesados,
+# no deben versionarse; se documentan y se referencian en el trabajo escrito).
+checkpoints/*.pt
+logs/*.csv
+videos/*.mp4
+!checkpoints/.gitkeep
+!logs/.gitkeep
+!videos/.gitkeep
+
+.venv/
+venv/
