@@ -58,6 +58,15 @@ decaimiento de epsilon, etc.).
 El notebook `notebooks/Proyecto2_SpaceInvaders_DQN.ipynb` carga estos CSV para graficar las curvas de
 entrenamiento y compara iteraciones.
 
+Para continuar entrenando desde un checkpoint existente en vez de empezar de cero (pesos, optimizador y
+contador de pasos), usar `--resume-from`. Si el checkpoint es de antes de que se guardara `env_step` (como
+`best_run`), hay que indicar `--start-step` explícitamente para no reiniciar el decaimiento de ε:
+
+```bash
+python -m dqn.train --iteration iter03 --total-steps 5000000 \
+    --resume-from checkpoints/best_run.pt --start-step 3000000
+```
+
 ## Cargar el modelo final y evaluar (protocolo de competencia)
 
 ```bash
@@ -97,13 +106,23 @@ trabajo escrito junto a las iteraciones del agente DQN.
 | Baseline aleatorio | 185.0 | 260.0 |
 | Baseline regla simple | 270.0 | 270.0 |
 | **DQN (`best_run`: Dueling + Double DQN, 3M pasos)** | **710.0** | **800.0** |
+| DQN (`iter03`: `best_run` continuado a 5M pasos) | 634.0 | 655.0 |
 
 `best_run`: arquitectura Dueling DQN, Double DQN activado, γ=0.99, lr=2.5e-4, replay buffer de 150k,
 ε decae de 1.0 a 0.02 en el primer millón de pasos, 3,000,000 pasos de entorno totales
 (~153 min en una GTX 1660 Super). Episodios de evaluación: `[605, 715, 800, 715, 715]`. La pérdida se
-mantuvo estable y baja (~0.01-0.02) durante todo el entrenamiento, sin señales de divergencia; no hay
-evidencia de que la curva haya convergido del todo, por lo que una iteración con más pasos de
-entrenamiento es la mejora más directa a probar a continuación.
+mantuvo estable y baja (~0.01-0.02) durante todo el entrenamiento, sin señales de divergencia.
+
+`iter03`: mismos hiperparámetros, se reanudó `best_run` (`--resume-from` + `--start-step 3000000`) hasta
+5,000,000 pasos totales para probar si más entrenamiento seguía mejorando el agente. Episodios de
+evaluación: `[605, 655, 600, 655, 655]` — **el resultado empeoró** respecto a `best_run` (710→634 promedio,
+800→655 máximo) en vez de mejorar. La pérdida siguió baja y estable (sin divergencia visible en la curva),
+por lo que no parece un colapso catastrófico clásico; una explicación plausible es que el replay buffer no
+se persiste entre corridas, así que al reanudar se rellenó desde cero con ε ya en 0.02 (casi greedy) — es
+decir, con transiciones muy correlacionadas y poco diversas del propio agente, en vez de la mezcla más
+exploratoria que tuvo el buffer original durante el decaimiento de ε de 1.0 a 0.02. Esto sugiere que "más
+pasos" no es una mejora gratuita en DQN: la calidad/diversidad del buffer en el momento de reanudar importa
+tanto como el número total de pasos. `best_run` (3M) se mantiene como el mejor agente reportado.
 
 ## Notas de diseño relevantes para el trabajo escrito
 
