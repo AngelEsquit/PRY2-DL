@@ -29,7 +29,9 @@ from dqn.wrappers import FRAME_SIZE, N_FRAME_STACK, crear_entorno_dqn
 def parse_args():
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--iteration", required=True, help="Identificador de la corrida (para logs/ y checkpoints/).")
-    p.add_argument("--total-steps", type=int, default=2_000_000, help="Pasos de entorno totales a entrenar.")
+    p.add_argument("--total-steps", type=int, default=2_000_000, help="Pasos de entorno totales a entrenar (absoluto, incluyendo los ya hechos si se usa --resume-from).")
+    p.add_argument("--resume-from", default=None, help="Ruta a un checkpoint (.pt) desde el cual continuar entrenando (pesos, optimizador y contador de pasos).")
+    p.add_argument("--start-step", type=int, default=None, help="Env_step desde el cual continuar (sobreescribe el guardado en el checkpoint). Obligatorio con --resume-from si el checkpoint es de antes de que se guardara env_step (dará error explícito en ese caso).")
     p.add_argument("--architecture", choices=["dqn", "dueling"], default="dqn")
     p.add_argument("--double-dqn", action="store_true", default=True)
     p.add_argument("--no-double-dqn", dest="double_dqn", action="store_false")
@@ -67,39 +69,58 @@ def main():
     n_actions = env.action_space.n
     obs_shape = (N_FRAME_STACK, FRAME_SIZE, FRAME_SIZE)
 
-    config = DQNConfig(
-        n_actions=n_actions,
-        n_frames=N_FRAME_STACK,
-        architecture=args.architecture,
-        double_dqn=args.double_dqn,
-        gamma=args.gamma,
-        learning_rate=args.lr,
-        batch_size=args.batch_size,
-        target_update_freq=args.target_update_freq,
-        epsilon_start=args.epsilon_start,
-        epsilon_end=args.epsilon_end,
-        epsilon_decay_steps=args.epsilon_decay_steps,
-        seed=args.seed,
-    )
-    agent = DQNAgent(config)
+    if args.resume_from:
+        agent = DQNAgent.load(args.resume_from, for_training=True)
+        start_step, episode_idx = DQNAgent.resume_counters(args.resume_from)
+        if start_step == 0 and args.start_step is None:
+            raise SystemExit(
+                f"[{args.iteration}] el checkpoint {args.resume_from} no tiene env_step guardado "
+                "(fue entrenado antes de que train.py lo registrara). Pasa --start-step explícitamente "
+                "(p.ej. --start-step 3000000) para continuar el schedule de epsilon correctamente en vez "
+                "de reiniciar la exploración desde epsilon_start."
+            )
+        if args.start_step is not None:
+            start_step = args.start_step
+        print(f"[{args.iteration}] reanudando desde {args.resume_from} (env_step={start_step}, episodio={episode_idx})")
+    else:
+        config = DQNConfig(
+            n_actions=n_actions,
+            n_frames=N_FRAME_STACK,
+            architecture=args.architecture,
+            double_dqn=args.double_dqn,
+            gamma=args.gamma,
+            learning_rate=args.lr,
+            batch_size=args.batch_size,
+            target_update_freq=args.target_update_freq,
+            epsilon_start=args.epsilon_start,
+            epsilon_end=args.epsilon_end,
+            epsilon_decay_steps=args.epsilon_decay_steps,
+            seed=args.seed,
+        )
+        agent = DQNAgent(config)
+        start_step, episode_idx = 0, 0
+
     buffer = ReplayBuffer(args.buffer_size, obs_shape, seed=args.seed)
 
-    print(f"[{args.iteration}] device={agent.device} n_actions={n_actions} arch={args.architecture} double_dqn={args.double_dqn}")
+    print(f"[{args.iteration}] device={agent.device} n_actions={n_actions} arch={agent.config.architecture} double_dqn={agent.config.double_dqn}")
 
     log_path = log_dir / f"{args.iteration}.csv"
-    with open(log_path, "w", newline="") as f:
-        csv.writer(f).writerow(
-            ["episode", "env_step", "reward_total", "length", "epsilon", "avg_loss", "elapsed_s"]
-        )
+    if not args.resume_from or not log_path.exists():
+        with open(log_path, "w", newline="") as f:
+            csv.writer(f).writerow(
+                ["episode", "env_step", "reward_total", "length", "epsilon", "avg_loss", "elapsed_s"]
+            )
 
     obs, _ = env.reset(seed=args.seed)
     episode_reward = 0.0
     episode_length = 0
     episode_losses = []
-    episode_idx = 0
     start_time = time.time()
 
-    for env_step in range(1, args.total_steps + 1):
+    # El buffer siempre arranca vacío al reanudar (no se persiste), así que el
+    # warmup de `learning_starts` se cuenta desde el inicio de esta corrida,
+    # no desde el env_step absoluto reanudado.
+    for local_step, env_step in enumerate(range(start_step + 1, args.total_steps + 1), start=1):
         action = agent.select_action(obs, env_step)
         next_obs, reward, terminated, truncated, info = env.step(action)
         done = terminated or truncated
@@ -109,7 +130,7 @@ def main():
         episode_reward += reward
         episode_length += 1
 
-        if env_step >= args.learning_starts and env_step % args.train_freq == 0:
+        if local_step >= args.learning_starts and local_step % args.train_freq == 0:
             batch = buffer.sample(args.batch_size)
             loss = agent.train_step(batch)
             episode_losses.append(loss)
@@ -135,9 +156,9 @@ def main():
             episode_losses = []
 
         if env_step % args.checkpoint_freq == 0:
-            agent.save(str(ckpt_dir / f"{args.iteration}.pt"))
+            agent.save(str(ckpt_dir / f"{args.iteration}.pt"), env_step=env_step, episode_idx=episode_idx)
 
-    agent.save(str(ckpt_dir / f"{args.iteration}.pt"))
+    agent.save(str(ckpt_dir / f"{args.iteration}.pt"), env_step=args.total_steps, episode_idx=episode_idx)
     env.close()
     print(f"[{args.iteration}] entrenamiento finalizado. Checkpoint final: {ckpt_dir / f'{args.iteration}.pt'}")
 

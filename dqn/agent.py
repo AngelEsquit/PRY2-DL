@@ -122,29 +122,56 @@ class DQNAgent:
     def update_target(self) -> None:
         self.target_net.load_state_dict(self.online_net.state_dict())
 
-    def save(self, path: str) -> None:
+    def save(self, path: str, env_step: int = 0, episode_idx: int = 0) -> None:
         torch.save(
             {
                 "online_state_dict": self.online_net.state_dict(),
+                "target_state_dict": self.target_net.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "train_steps": self._train_steps,
+                "env_step": env_step,
+                "episode_idx": episode_idx,
                 "config": self.config,
             },
             path,
         )
 
     @classmethod
-    def load(cls, path: str, device: str | None = None) -> "DQNAgent":
+    def load(cls, path: str, device: str | None = None, for_training: bool = False) -> "DQNAgent":
         """Carga un agente entrenado desde un checkpoint guardado con
         `save`. Reconstruye la arquitectura a partir de la configuración
-        guardada, para asegurar consistencia con el entrenamiento."""
+        guardada, para asegurar consistencia con el entrenamiento.
+
+        Si `for_training=True`, también restaura el estado del optimizador,
+        la red objetivo y los contadores de pasos, para poder continuar
+        entrenando en vez de solo evaluar (compatible con checkpoints
+        antiguos que no guardaron ese estado adicional)."""
         checkpoint = torch.load(path, map_location=device or "cpu", weights_only=False)
         config: DQNConfig = checkpoint["config"]
         if device is not None:
             config.device = device
         agent = cls(config)
         agent.online_net.load_state_dict(checkpoint["online_state_dict"])
-        agent.target_net.load_state_dict(checkpoint["online_state_dict"])
-        agent.online_net.eval()
+
+        if for_training:
+            agent.target_net.load_state_dict(
+                checkpoint.get("target_state_dict", checkpoint["online_state_dict"])
+            )
+            if "optimizer_state_dict" in checkpoint:
+                agent.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+            agent._train_steps = checkpoint.get("train_steps", 0)
+        else:
+            agent.target_net.load_state_dict(checkpoint["online_state_dict"])
+            agent.online_net.eval()
         return agent
+
+    @staticmethod
+    def resume_counters(path: str) -> tuple[int, int]:
+        """Lee (env_step, episode_idx) guardados en un checkpoint, para que
+        `train.py` sepa desde dónde continuar. Checkpoints antiguos sin esta
+        información retornan (0, 0)."""
+        checkpoint = torch.load(path, map_location="cpu", weights_only=False)
+        return checkpoint.get("env_step", 0), checkpoint.get("episode_idx", 0)
 
     def policy_fn(self):
         """Retorna una función (observation, env) -> action compatible con
