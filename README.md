@@ -107,6 +107,7 @@ trabajo escrito junto a las iteraciones del agente DQN.
 | Baseline regla simple | 270.0 | 270.0 |
 | **DQN (`best_run`: Dueling + Double DQN, 3M pasos)** | **710.0** | **800.0** |
 | DQN (`iter03`: `best_run` continuado a 5M pasos) | 634.0 | 655.0 |
+| DQN (`iter_plain_dqn`: sin Double DQN ni Dueling, 1.5M pasos) | 602.0 | 755.0 |
 
 `best_run`: arquitectura Dueling DQN, Double DQN activado, γ=0.99, lr=2.5e-4, replay buffer de 150k,
 ε decae de 1.0 a 0.02 en el primer millón de pasos, 3,000,000 pasos de entorno totales
@@ -123,6 +124,17 @@ decir, con transiciones muy correlacionadas y poco diversas del propio agente, e
 exploratoria que tuvo el buffer original durante el decaimiento de ε de 1.0 a 0.02. Esto sugiere que "más
 pasos" no es una mejora gratuita en DQN: la calidad/diversidad del buffer en el momento de reanudar importa
 tanto como el número total de pasos. `best_run` (3M) se mantiene como el mejor agente reportado.
+
+`iter_plain_dqn`: mismos hiperparámetros e igual número de pasos de warmup/decaimiento que `best_run`, pero
+con arquitectura `dqn` (sin Dueling) y `--no-double-dqn` (DQN vanilla), entrenado 1,500,000 pasos (la mitad
+que `best_run`, por tiempo disponible — la comparación no es 100% controlada por esto). Episodios de
+evaluación: `[260, 755, 485, 755, 755]`. Pérdida estable (~0.01-0.017), sin divergencia. Promedio (602.0) y
+máximo (755.0) quedan por debajo de `best_run`, y la varianza entre episodios es notablemente mayor
+(260-755 vs. 605-800 en `best_run`), consistente con lo esperado: sin Double DQN la sobreestimación de
+valores Q produce una política menos consistente, y sin Dueling la red generaliza peor entre acciones en
+estados donde el valor no depende mucho de cuál se tome. Sugiere que ambas mejoras (Double + Dueling)
+contribuyen tanto al puntaje como a la estabilidad de la política, aunque con solo la mitad de los pasos de
+entrenamiento de `best_run` no se puede aislar completamente su efecto del de la duración del entrenamiento.
 
 ## Notas de diseño relevantes para el trabajo escrito
 
