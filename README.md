@@ -108,6 +108,8 @@ trabajo escrito junto a las iteraciones del agente DQN.
 | **DQN (`best_run`: Dueling + Double DQN, 3M pasos)** | **710.0** | **800.0** |
 | DQN (`iter03`: `best_run` continuado a 5M pasos) | 634.0 | 655.0 |
 | DQN (`iter_plain_dqn`: sin Double DQN ni Dueling, 1.5M pasos) | 602.0 | 755.0 |
+| DQN (`iter_double_only`: Double DQN sin Dueling, 1.5M pasos) | 385.0 | 490.0 |
+| DQN (`iter_dueling_only`: Dueling sin Double DQN, 1.5M pasos) | 360.0 | 460.0 |
 
 `best_run`: arquitectura Dueling DQN, Double DQN activado, γ=0.99, lr=2.5e-4, replay buffer de 150k,
 ε decae de 1.0 a 0.02 en el primer millón de pasos, 3,000,000 pasos de entorno totales
@@ -135,6 +137,22 @@ valores Q produce una política menos consistente, y sin Dueling la red generali
 estados donde el valor no depende mucho de cuál se tome. Sugiere que ambas mejoras (Double + Dueling)
 contribuyen tanto al puntaje como a la estabilidad de la política, aunque con solo la mitad de los pasos de
 entrenamiento de `best_run` no se puede aislar completamente su efecto del de la duración del entrenamiento.
+
+`iter_double_only` e `iter_dueling_only`: mismos hiperparámetros y 1,500,000 pasos (igual que
+`iter_plain_dqn`), pero activando **solo una** mejora cada vez — Double DQN sin Dueling, y Dueling sin
+Double DQN, respectivamente — para intentar aislar el efecto individual de cada una. Episodios de
+evaluación: `iter_double_only` = `[460, 325, 490, 325, 325]`, `iter_dueling_only` = `[120, 460, 300, 460,
+460]`. Resultado contraintuitivo: **ambas variantes con una sola mejora activada quedan por debajo de
+`iter_plain_dqn`** (que no tiene ninguna), y muy por debajo de `best_run` (que tiene ambas, pero a 3M
+pasos). Esto no respalda una historia simple de "cada mejora ayuda de forma independiente y monotónica";
+es más consistente con que, a 1.5M pasos, ninguna configuración individual ha convergido todavía y el
+resultado está dominado por varianza de una sola semilla, no por el efecto real de cada componente.
+Además, esta comparación **no está controlada por número de pasos** frente a `best_run` (3M) — extender
+estas dos corridas a 3M pasos requeriría reentrenar desde cero (no reanudar desde el checkpoint de 1.5M),
+porque reanudar después de que ε ya decayó reproduciría el mismo artefacto de buffer de baja diversidad
+documentado arriba para `iter03`. Por limitaciones de tiempo, esa corrida de control queda pendiente como
+trabajo futuro; los resultados de `iter_double_only` e `iter_dueling_only` deben leerse como preliminares,
+no como evidencia concluyente del efecto aislado de cada mejora.
 
 ## Notas de diseño relevantes para el trabajo escrito
 
