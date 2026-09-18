@@ -111,6 +111,8 @@ trabajo escrito junto a las iteraciones del agente DQN.
 | DQN (`iter_plain_dqn`: sin Double DQN ni Dueling, 1.5M pasos) | 602.0 | 755.0 |
 | DQN (`iter_double_only`: Double DQN sin Dueling, 1.5M pasos) | 385.0 | 490.0 |
 | DQN (`iter_dueling_only`: Dueling sin Double DQN, 1.5M pasos) | 360.0 | 460.0 |
+| DQN (`iter_double_only_3m`: Double DQN sin Dueling, 3M pasos, control de `best_run`) | 782.0 | 900.0 |
+| DQN (`iter_dueling_only_3m`: Dueling sin Double DQN, 3M pasos, control de `best_run`) | 582.0 | 750.0 |
 
 `best_run`: arquitectura Dueling DQN, Double DQN activado, γ=0.99, lr=2.5e-4, replay buffer de 150k,
 ε decae de 1.0 a 0.02 en el primer millón de pasos, 3,000,000 pasos de entorno totales
@@ -163,9 +165,27 @@ resultado está dominado por varianza de una sola semilla, no por el efecto real
 Además, esta comparación **no está controlada por número de pasos** frente a `best_run` (3M) — extender
 estas dos corridas a 3M pasos requeriría reentrenar desde cero (no reanudar desde el checkpoint de 1.5M),
 porque reanudar después de que ε ya decayó reproduciría el mismo artefacto de buffer de baja diversidad
-documentado arriba para `iter03`. Por limitaciones de tiempo, esa corrida de control queda pendiente como
-trabajo futuro; los resultados de `iter_double_only` e `iter_dueling_only` deben leerse como preliminares,
-no como evidencia concluyente del efecto aislado de cada mejora.
+documentado arriba para `iter03`. Los resultados de `iter_double_only` e `iter_dueling_only` (1.5M) deben
+leerse como preliminares; la corrida de control a 3M se reporta a continuación.
+
+`iter_double_only_3m` e `iter_dueling_only_3m`: repetición de la ablación anterior, mismos hiperparámetros
+que `best_run`, pero entrenadas **desde cero** hasta 3,000,000 de pasos (igual que `best_run`) en vez de
+1.5M, para tener una comparación controlada por número de pasos. `iter_double_only_3m` se entrenó
+localmente (GTX 1660 Super, ~134 min); `iter_dueling_only_3m` se entrenó en Google Colab (GPU T4) guardando
+checkpoints/logs en Google Drive para tolerar desconexiones de sesión. Episodios de evaluación:
+`iter_double_only_3m` = `[605, 900, 605, 900, 900]`, `iter_dueling_only_3m` = `[750, 520, 600, 520, 520]`.
+
+A 3M pasos el panorama cambia por completo respecto a 1.5M: **`iter_double_only_3m` (782.0 / 900.0) supera
+a `best_run`** (710.0 / 800.0), que tiene ambas mejoras activadas, mientras que `iter_dueling_only_3m`
+(582.0 / 750.0) queda por debajo de `best_run` pero por encima de su propia versión a 1.5M (360.0 / 460.0).
+Esto sugiere que, con más pasos, **Double DQN por sí solo explica la mayor parte de la ganancia** de
+`best_run` sobre las variantes sin mejoras, y que Dueling por sí solo ayuda pero menos, y de forma más
+lenta a converger. También es consistente con la lectura de `iter_plain_dqn`/`iter_double_only`/
+`iter_dueling_only` a 1.5M: ninguna configuración individual había convergido todavía a esa cantidad de
+pasos, por lo que esas comparaciones tempranas subestimaban a Double DQN en particular. Con solo una
+semilla por configuración, sin embargo, no se puede descartar que parte de la diferencia (especialmente el
+salto a 900.0 en `iter_double_only_3m`) sea varianza entre corridas en vez de una ventaja sistemática de
+Double DQN sobre Dueling; repetir con más semillas queda como trabajo futuro.
 
 ## Notas de diseño relevantes para el trabajo escrito
 
