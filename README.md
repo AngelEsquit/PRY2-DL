@@ -106,6 +106,7 @@ trabajo escrito junto a las iteraciones del agente DQN.
 | Baseline aleatorio | 185.0 | 260.0 |
 | Baseline regla simple | 270.0 | 270.0 |
 | **DQN (`best_run`: Dueling + Double DQN, 3M pasos)** | **710.0** | **800.0** |
+| DQN (`iter04_clean5m`: mismos hiperparámetros que `best_run`, 5M pasos desde cero) | 703.0 | 1300.0 |
 | DQN (`iter03`: `best_run` continuado a 5M pasos) | 634.0 | 655.0 |
 | DQN (`iter_plain_dqn`: sin Double DQN ni Dueling, 1.5M pasos) | 602.0 | 755.0 |
 | DQN (`iter_double_only`: Double DQN sin Dueling, 1.5M pasos) | 385.0 | 490.0 |
@@ -115,6 +116,18 @@ trabajo escrito junto a las iteraciones del agente DQN.
 ε decae de 1.0 a 0.02 en el primer millón de pasos, 3,000,000 pasos de entorno totales
 (~153 min en una GTX 1660 Super). Episodios de evaluación: `[605, 715, 800, 715, 715]`. La pérdida se
 mantuvo estable y baja (~0.01-0.02) durante todo el entrenamiento, sin señales de divergencia.
+
+`iter04_clean5m`: mismos hiperparámetros que `best_run` (Dueling + Double DQN, γ=0.99, lr=2.5e-4, replay
+buffer de 150k, ε decae de 1.0 a 0.02 en el primer millón de pasos), pero entrenado **desde cero** (sin
+`--resume-from`) hasta 5,000,000 pasos totales, para aislar el efecto de "más pasos" del artefacto de buffer
+de baja diversidad que afectó a `iter03` (ver abajo). Episodios de evaluación: `[580, 545, 1300, 545, 545]`
+(~268 min en una GTX 1660 Super). El promedio (703.0) queda prácticamente igual al de `best_run` (710.0),
+pero el máximo sube de 800.0 a 1300.0. La pérdida se mantuvo estable y baja (~0.01-0.02) durante todo el
+entrenamiento, sin señales de divergencia. Esto sugiere que entrenar más tiempo **desde cero** no perjudica
+al agente (a diferencia de reanudar desde un checkpoint con ε ya decayado, como en `iter03`), aunque tampoco
+produjo una mejora clara y consistente sobre `best_run` — tres episodios cayeron en el mismo valor (545),
+lo que apunta a que la política queda relativamente determinista una vez que ε llega a 0.02, y que el salto
+puntual a 1300 probablemente refleja varianza entre partidas más que una política objetivamente mejor.
 
 `iter03`: mismos hiperparámetros, se reanudó `best_run` (`--resume-from` + `--start-step 3000000`) hasta
 5,000,000 pasos totales para probar si más entrenamiento seguía mejorando el agente. Episodios de
