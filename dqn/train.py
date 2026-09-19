@@ -48,6 +48,7 @@ def parse_args():
     p.add_argument("--checkpoint-freq", type=int, default=100_000, help="Guardar checkpoint cada N pasos de entorno.")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--full-action-space", action="store_true", help="Usar el espacio de acciones completo de ALE (18) en vez del subconjunto mínimo del juego.")
+    p.add_argument("--sticky-prob", type=float, default=0.0, help="repeat_action_probability del entorno durante entrenamiento (0.0 = determinista, como en las corridas previas; 0.25 = valor por defecto de ALE/SpaceInvaders-v5).")
     p.add_argument("--log-dir", default="logs")
     p.add_argument("--checkpoint-dir", default="checkpoints")
     return p.parse_args()
@@ -65,6 +66,7 @@ def main():
         terminal_on_life_loss=True,
         clip_reward=True,
         full_action_space=args.full_action_space,
+        repeat_action_probability=args.sticky_prob,
     )
     n_actions = env.action_space.n
     obs_shape = (N_FRAME_STACK, FRAME_SIZE, FRAME_SIZE)
