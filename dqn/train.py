@@ -47,6 +47,7 @@ def parse_args():
     p.add_argument("--epsilon-decay-steps", type=int, default=1_000_000)
     p.add_argument("--checkpoint-freq", type=int, default=100_000, help="Guardar checkpoint cada N pasos de entorno.")
     p.add_argument("--snapshot-freq", type=int, default=0, help="Si > 0, guarda además un checkpoint permanente <iteration>_<N>k.pt cada N pasos de entorno (sin sobreescribir), para evaluar la curva de puntaje vs. pasos.")
+    p.add_argument("--snapshot-light", action="store_true", help="Los snapshots de --snapshot-freq guardan solo los pesos de la red online (~4x más chicos; sirven para evaluar pero no para reanudar).")
     p.add_argument("--seed", type=int, default=0)
     p.add_argument("--full-action-space", action="store_true", help="Usar el espacio de acciones completo de ALE (18) en vez del subconjunto mínimo del juego.")
     p.add_argument("--sticky-prob", type=float, default=0.0, help="repeat_action_probability del entorno durante entrenamiento (0.0 = determinista, como en las corridas previas; 0.25 = valor por defecto de ALE/SpaceInvaders-v5).")
@@ -162,7 +163,8 @@ def main():
             agent.save(str(ckpt_dir / f"{args.iteration}.pt"), env_step=env_step, episode_idx=episode_idx)
 
         if args.snapshot_freq > 0 and env_step % args.snapshot_freq == 0:
-            agent.save(
+            save_fn = agent.save_light if args.snapshot_light else agent.save
+            save_fn(
                 str(ckpt_dir / f"{args.iteration}_{env_step // 1000}k.pt"),
                 env_step=env_step, episode_idx=episode_idx,
             )

@@ -1,0 +1,5 @@
+checkpoint,setting,episodes,mean,median,std,min,max,distinct_scores
+iter04_clean5m,determinista,200,759.975,580.0,302.4960733216218,545.0,1300.0,4
+iter04_clean5m,sticky,200,718.0,600.0,245.23814956078917,250.0,1555.0,81
+iter05_sticky5m_s0_5000k,determinista,200,516.2,480.0,129.34569958062,345.0,695.0,4
+iter05_sticky5m_s0_5000k,sticky,200,644.45,600.0,205.51994428765298,260.0,1600.0,88

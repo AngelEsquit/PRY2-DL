@@ -1,0 +1,3 @@
+checkpoint,setting,episodes,mean,median,std,min,max,distinct_scores
+iter08_detlong_s6_20000k,determinista,100,791.45,545.0,389.25653173710515,530.0,1430.0,4
+iter08_detlong_s6_20000k,sticky,100,711.7,622.5,283.2968584365171,190.0,1700.0,70

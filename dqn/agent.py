@@ -136,6 +136,19 @@ class DQNAgent:
             path,
         )
 
+    def save_light(self, path: str, env_step: int = 0, episode_idx: int = 0) -> None:
+        """Guarda solo pesos de la red online + config + contadores (~4x más
+        chico que `save`). Sirve para evaluar, no para reanudar entrenamiento."""
+        torch.save(
+            {
+                "online_state_dict": self.online_net.state_dict(),
+                "env_step": env_step,
+                "episode_idx": episode_idx,
+                "config": self.config,
+            },
+            path,
+        )
+
     @classmethod
     def load(cls, path: str, device: str | None = None, for_training: bool = False) -> "DQNAgent":
         """Carga un agente entrenado desde un checkpoint guardado con
